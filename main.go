@@ -1,4 +1,4 @@
-package dero_wallet_gen
+package main
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ Options:
   -h --help           Show this screen.
   --suffix=<suffix>   Search for wallet with this string suffix
 
-Example: ./dero-wallet-gen --suffix 
+Example: ./dero-wallet-gen --suffix dead
 `
 var suffix string
 var exit = make(chan bool)
