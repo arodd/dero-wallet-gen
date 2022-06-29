@@ -10,7 +10,9 @@ import (
 	"strings"
 )
 
+var suffix string
 var arguments = map[string]interface{}{}
+var exit = make(chan bool)
 
 var command_line string = `dero-wallet-gen
 Generate Dero Wallet with matching suffix
@@ -25,8 +27,6 @@ Options:
 
 Example: ./dero-wallet-gen --suffix dead
 `
-var suffix string
-var exit = make(chan bool)
 
 func main() {
 	arguments, _ = docopt.Parse(command_line, nil, true, "v0.0.1", false)
