@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/deroproject/derohe/walletapi"
+	"github.com/deroproject/graviton"
 	"github.com/docopt/docopt-go"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 var suffix = ""
 var prefix = ""
 var contains = ""
+var keyhashsearch = ""
 var arguments = map[string]interface{}{}
 var exit = make(chan bool)
 
@@ -25,6 +27,7 @@ Usage:
   dero-wallet-gen --suffix=<string>
   dero-wallet-gen --prefix=<string>
   dero-wallet-gen --contains=<string>
+  dero-wallet-gen --keyhash=<string>
   dero-wallet-gen -h | --help
 
 Options:
@@ -32,6 +35,7 @@ Options:
   --suffix=<string>   Search for wallet with this string suffix
   --prefix=<string>   Search for wallet with this string prefix
   --contains=<string> Search for wallet with this string anywhere
+  --keyhash=<string>  Search for keyhash with this hex string
 
 Example: ./dero-wallet-gen --suffix dead
 
@@ -46,6 +50,8 @@ func main() {
 		prefix = arguments["--prefix"].(string)
 	} else if arguments["--contains"] != nil {
 		contains = arguments["--contains"].(string)
+	} else if arguments["--keyhash"] != nil {
+		keyhashsearch = arguments["--keyhash"].(string)
 	} else {
 		return
 	}
@@ -72,6 +78,8 @@ func main() {
 			go findWalletPrefix(prefix)
 		} else if contains != "" {
 			go findWalletContains(contains)
+		} else if keyhashsearch != "" {
+			go findKeyHash(keyhashsearch)
 		} else {
 			return
 		}
@@ -119,6 +127,32 @@ func findWalletContains(contains string) {
 	}
 }
 
+func findKeyHash(keyhashsearch string) {
+	for {
+		account, _ := walletapi.Generate_Keys_From_Random()
+		account.SeedLanguage = "English"
+		bytes := account.Keys.Public.EncodeCompressed()
+		keyhash := graviton.Sum(bytes)
+		keyhashstring := hex.EncodeToString(keyhash[:])
+		if strings.Contains(keyhashstring, keyhashsearch) {
+			private := account.Keys.Secret.String()
+			w, err := walletapi.Create_Encrypted_Wallet_Memory("yes", account.Keys.Secret)
+			if err == nil {
+				address := w.GetAddress()
+				address.Mainnet = true
+				seed := w.GetSeed()
+				threadwrite.Lock()
+				fmt.Println(fmt.Sprintf("%-10s %s", "Wallet: ", address))
+				fmt.Println(fmt.Sprintf("%-10s %s", "Public: ", hex.EncodeToString(bytes[:])))
+				fmt.Println(fmt.Sprintf("%-10s %s", "Private: ", private))
+				fmt.Println(fmt.Sprintf("%-10s %s", "Keyhash: ", hex.EncodeToString(keyhash[:])))
+				fmt.Println(seed, "\n")
+				threadwrite.Unlock()
+			}
+		}
+	}
+}
+
 func getSeeds(account *walletapi.Account) {
 	bytes := account.Keys.Public.EncodeCompressed()
 	private := account.Keys.Secret.String()
@@ -126,12 +160,12 @@ func getSeeds(account *walletapi.Account) {
 	if err == nil {
 		address := w.GetAddress()
 		address.Mainnet = true
+		seed := w.GetSeed()
 		threadwrite.Lock()
 		defer threadwrite.Unlock()
+		fmt.Println(fmt.Sprintf("%-10s %s", "Wallet: ", address))
 		fmt.Println(fmt.Sprintf("%-10s %s", "Public: ", hex.EncodeToString(bytes[:])))
 		fmt.Println(fmt.Sprintf("%-10s %s", "Private: ", private))
-		fmt.Println(fmt.Sprintf("%-10s %s", "Wallet: ", address))
-		seed := w.GetSeed()
 		fmt.Println(seed, "\n")
 	}
 }
